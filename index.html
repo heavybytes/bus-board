@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Табло Транспорту</title>
+    <style>
+        @font-face{
+         font-family:"JetBrains Mono";
+         src:url("fonts/JetBrainsMonoNerdFontMono-Regular.ttf");
+        }
+        :root{
+         --bg:#111315; --fg:#d7dae0; --cyan:#56b6c2; --green:#98c379;
+         --yellow:#e5c07b; --blue:#61afef; --gray:#6b7280;
+        }
+        *{box-sizing:border-box}
+        body{
+         margin:0;
+         padding-top: 56px;
+         padding-left: 14px;
+         padding-right: 14px;
+         padding-bottom: 14px;
+         background:var(--bg);color:var(--fg);
+         font-family:"JetBrains Mono",monospace;font-size:15px;line-height:1.45;
+        }
+        #view-controls{
+         display:flex!important;gap:10px;max-width:800px;margin:0 auto 12px!important;
+        }
+        #view-controls button{
+            background:none;
+            border:none;
+            padding:0;
+            margin:0;
+            color:var(--cyan);
+            font:inherit;
+            cursor:pointer;
+        }
+        #view-controls button span {
+            padding: 2px 4px;
+        }
+
+        #view-controls button.active span {
+            background: var(--yellow);
+            color: var(--bg);
+        }
+
+        #bus-controls {
+            max-width: 800px;
+            margin: 0 auto 10px;
+            text-align: center;
+            font-family: inherit;
+        }
+
+        .bus-toggle {
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            color: var(--cyan);
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .bus-toggle span {
+            padding: 2px 4px;
+        }
+
+        .bus-toggle.active span {
+            background: var(--yellow);
+            color: var(--bg);
+        }
+
+        .section-container,#live-board,#full-schedule{max-width:800px;margin:auto}
+        .section-title{
+         color:var(--yellow);
+         font-weight:bold;
+         margin:16px 0 8px;
+         border:none;
+         padding:0;
+         font-size:1.05rem
+        }
+        .icon {
+            font-weight: normal;
+            margin-right: 6px;
+        }
+        .direction-header th {
+            color: var(--yellow);
+            font-weight: bold;
+        }
+
+        .direction-header .icon {
+            font-weight: normal;
+            margin-right: 6px;
+        }
+        .table-header th {
+            color: var(--fg);
+            font-weight: bold;
+        }
+        table{width:100%;border-collapse:collapse;background:none}
+        td,th{padding:4px 2px;border:none;font:inherit}
+        th{color:var(--gray);text-align:left}
+        .route-to{color:var(--green)}
+        .route-from{color:var(--blue)}
+        .route-path {
+            display: inline-grid;
+            grid-template-columns: var(--route-from-width) auto max-content;
+            column-gap: 6px;
+        }
+        .stop-time {
+            color: var(--fg);
+        }
+
+        .en-route{color:var(--gray)}
+
+        .en-route .stop-time {color: var(--fg)}
+        .refresh-button{
+            display:block;
+            margin:15px auto;
+            padding:0;
+            background:transparent;
+            border:0;
+            outline:0;
+            box-shadow:none;
+            appearance:none;
+            -webkit-appearance:none;
+            font:inherit;
+        }
+
+        .refresh-button:focus,
+        .refresh-button:active,
+        .refresh-button:focus-visible{
+            outline:none;
+            box-shadow:none;
+        }
+
+        .refresh-button span{
+            display:inline-block;
+            padding:2px 4px;
+            background:var(--cyan);
+            color:var(--bg);
+        }
+        .status-separator {
+            margin: 0 12px;
+        }
+        #status{
+            color:var(--gray);
+            margin-top:12px
+        }div
+        #status-line {
+            margin: 0 auto 10px;
+            color: var(--cyan);
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+<div style="max-width:800px;margin:0 auto 10px;">
+    <div id="status-line"></div>
+</div>
+
+<div id="bus-controls">
+    <span>Автобуси:</span>
+    <button id="bus-127" class="bus-toggle active" onclick="toggleBus('127')"><span>[127]</span></button>
+    <button id="bus-119" class="bus-toggle active" onclick="toggleBus('119')"><span>[119]</span></button>
+</div>
+
+<div id="view-controls" style="
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+">
+    <button id="btn-live" onclick="showLiveBoard()">
+        <span>[табло]</span>
+    </button>
+
+    <button id="btn-weekday" onclick="showFullSchedule('Будні')">
+        <span>[будні]</span>
+    </button>
+
+    <button id="btn-weekend" onclick="showFullSchedule('Вихідні')">
+        <span>[вихідні]</span>
+    </button>
+</div>
+
+<div id="live-board">
+
+    <div class="section-container">
+        <div class="section-title">
+            <span class="icon">&#xf207;</span>
+            <span class="prompt">&rarr;</span>
+            До Житомира
+        </div>
+        <table id="to-city-table"></table>
+    </div>
+
+    <div class="section-container">
+        <div class="section-title">
+            <span class="icon">&#xf207;</span>
+            <span class="prompt">&larr;</span>
+            З Житомира [АТБ +25хв]
+        </div>
+        <table id="from-city-table"></table>
+    </div>
+
+    <button class="refresh-button" onclick="location.reload()">
+        <span>[оновити]</span>
+    </button>
+    </button>
+
+    <div id="status">Оновлення...</div>
+</div>
+
+<div id="full-schedule" style="display:none; width:100%; max-width:800px;">
+    <div class="section-container">
+        <div class="section-title" id="full-schedule-title"></div>
+
+        <table id="full-schedule-table"></table>
+    </div>
+</div>
+
+<script>
+    // Bus schedule data with departure points
+
+let scheduleData = [];
+let selectedBuses = ["127", "119"];
+let currentView = "live";
+let currentDayType = "Будні";
+
+async function loadSchedule() {
+    const scheduleFiles = selectedBuses.map(route => `schedule-${route}.csv`);
+
+    scheduleData = [];
+
+    for (const file of scheduleFiles) {
+        const response = await fetch(file);
+
+        if (!response.ok) {
+            throw new Error(`Не вдалося завантажити ${file}: ${response.status}`);
+        }
+
+        const csvText = await response.text();
+
+        const lines = csvText
+            .split(/\r?\n/)
+            .filter(line => line.trim() !== '');
+
+        scheduleData.push(
+            ...lines.slice(1).map(line => {
+                const values = line.split(',');
+
+                return {
+                    dayType: values[0],
+                    time: values[1],
+                    route: values[2],
+                    from: values[3],
+                    direction: values[4]
+                };
+            })
+        );
+    }
+}
+
+
+function toggleBus(route) {
+    const index = selectedBuses.indexOf(route);
+
+    if (index === -1) {
+        selectedBuses.push(route);
+    } else {
+        selectedBuses.splice(index, 1);
+    }
+
+    updateBusButtons();
+
+    loadSchedule()
+        .then(() => {
+            if (currentView === "live") {
+                updateDisplay();
+            } else {
+                showFullSchedule(currentDayType);
+            }
+        });
+}
+
+
+function updateBusButtons() {
+    document.querySelector('#bus-127 span').innerText = "[127]";
+    document.querySelector('#bus-119 span').innerText = "[119]";
+
+    document.getElementById('bus-127').classList.toggle(
+        'active',
+        selectedBuses.includes("127")
+    );
+
+    document.getElementById('bus-119').classList.toggle(
+        'active',
+        selectedBuses.includes("119")
+    );
+}
+
+
+function getDayType(date) {
+    const dayOfWeek = date.getDay();
+    return (dayOfWeek === 0 || dayOfWeek === 6) ? "Вихідні" : "Будні";
+}
+
+function getFilteredBuses(data, currentDayType, currentTimeMs, lookbackMs) {
+    let upcoming = data.filter(bus => {
+        if (bus.dayType !== currentDayType) return false;
+
+        const [h, m] = bus.time.split(':').map(Number);
+        const busTimeMs = h * 3600000 + m * 60000;
+
+        // Flag to check if the departure time is in the past
+        bus.isEnRoute = busTimeMs < currentTimeMs;
+
+        return busTimeMs >= (currentTimeMs - lookbackMs);
+    }).sort((a, b) => a.time.localeCompare(b.time)).slice(0, 5); // Increased display limit to 4
+
+    // If no buses today, fetch for the next day
+    if (upcoming.length === 0) {
+        const nextDay = new Date();
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayType = getDayType(nextDay);
+
+        upcoming = data.filter(bus => {
+            bus.isEnRoute = false; // Next day buses are strictly in the future
+            return bus.dayType === nextDayType;
+        }).sort((a, b) => a.time.localeCompare(b.time)).slice(0, 5); // Increased limit to 4
+    }
+    return upcoming;
+}
+
+
+function getFilteredFromCityBuses(data, currentDayType, currentTimeMs) {
+    let upcoming = data.filter(bus => {
+        if (bus.dayType !== currentDayType) return false;
+
+        const [h, m] = bus.time.split(':').map(Number);
+        const busTimeMs = h * 3600000 + m * 60000;
+
+        const atbTime = addMinutes(bus.time, 25);
+        const [atbH, atbM] = atbTime.split(':').map(Number);
+        const atbTimeMs = atbH * 3600000 + atbM * 60000;
+
+        if (currentTimeMs <= atbTimeMs) {
+            bus.isEnRoute = currentTimeMs > busTimeMs;
+            return true;
+        }
+
+        return false;
+    })
+    .sort((a, b) => a.time.localeCompare(b.time))
+    .slice(0, 5);
+
+    if (upcoming.length === 0) {
+        const nextDay = new Date();
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayType = getDayType(nextDay);
+
+        upcoming = data.filter(bus => {
+            bus.isEnRoute = false;
+            return bus.dayType === nextDayType;
+        })
+        .sort((a, b) => a.time.localeCompare(b.time))
+        .slice(0, 5);
+    }
+
+    return upcoming;
+}
+
+
+function addMinutes(time, minutes) {
+    const [hours, mins] = time.split(':').map(Number);
+    const date = new Date(2000, 0, 1, hours, mins);
+
+    date.setMinutes(date.getMinutes() + minutes);
+
+    return String(date.getHours()).padStart(2, '0') + ':' +
+           String(date.getMinutes()).padStart(2, '0');
+}
+
+function getRouteFromWidth(buses) {
+    const maxLength = Math.max(
+        ...buses.map(bus => {
+            if (bus.direction === "Житомир") {
+                return (bus.from || "—").length;
+            }
+
+            return 3; // "Жт."
+        })
+    );
+
+    return `${maxLength}ch`;
+}
+
+function renderTable(containerId, buses) {
+    const table = document.getElementById(containerId);
+    table.style.setProperty(
+        '--route-from-width',
+        getRouteFromWidth(buses)
+    );
+    let html = "";
+
+    if (buses.length === 0) {
+        table.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px; opacity:0.5;'>Рейсів не знайдено</td></tr>";
+        return;
+    }
+
+    buses.forEach(bus => {
+        let rowClass = "";
+
+        if (bus.isEnRoute) {
+            rowClass = "en-route";
+        } else {
+            rowClass = bus.direction === "Житомир" ? "route-to" : "route-from";
+        }
+
+        let routeFrom = "";
+        let routeTo = "";
+
+        if (bus.direction === "Житомир") {
+            routeFrom = bus.from || "—";
+            routeTo = "Жт.";
+        } else {
+            routeFrom = "Жт.";
+            routeTo = bus.direction;
+        }
+
+        let routePath = `
+            <span class="route-path">
+                <span>${routeFrom}</span>
+                <span>➔</span>
+                <span>${routeTo}</span>
+            </span>`;
+
+        let timeDisplay = bus.time;
+
+        if (bus.direction !== "Житомир") {
+            const stopTime = addMinutes(bus.time, 25);
+            timeDisplay = `${bus.time} <span class="stop-time">[${stopTime} атб]</span>`;
+        }
+
+        html += `
+            <tr class="${rowClass}">
+                <td>${timeDisplay}</td>
+                <td>${bus.route}</td>
+                <td>${routePath}</td>
+            </tr>`;
+    });
+
+    table.innerHTML = html;
+}
+
+
+function updateDisplay() {
+    const now = new Date();
+    const currentDayType = getDayType(now);
+
+    // Ignore seconds in current time to prevent a bus from disappearing mid-minute
+    const currentTimeMs = now.getHours() * 3600000 + now.getMinutes() * 60000;
+
+    // Set lookback to 15 minutes
+    const lookbackMs = 15 * 60 * 1000;
+
+    const toCitySource = scheduleData.filter(b => b.direction === "Житомир");
+    const fromCitySource = scheduleData.filter(b => b.direction !== "Житомир");
+
+    const toCityBuses = getFilteredBuses(toCitySource, currentDayType, currentTimeMs, lookbackMs);
+    //const fromCityBuses = getFilteredBuses(fromCitySource, currentDayType, currentTimeMs, lookbackMs);
+    const fromCityBuses = getFilteredFromCityBuses(fromCitySource, currentDayType, currentTimeMs);
+
+    renderTable('to-city-table', toCityBuses);
+    renderTable('from-city-table', fromCityBuses);
+
+    document.getElementById('status').innerText = "// Оновлено: " + now.toLocaleTimeString();
+}
+
+function clockTick() {
+    const now = new Date();
+
+    const weekday = now.toLocaleDateString('uk-UA', {
+        weekday: 'long'
+    });
+
+    const time =
+        String(now.getHours()).padStart(2, '0') + ":" +
+        String(now.getMinutes()).padStart(2, '0');
+
+    document.getElementById('status-line').innerHTML =
+        `<span class="icon">&#xf073;</span>${weekday}<span class="status-separator">  </span><span class="icon">&#xf017;</span>${time}`;
+
+    if (now.getSeconds() === 0) {
+        updateDisplay();
+    }
+}
+
+function setActiveButton(id) {
+    document.querySelectorAll('#view-controls button')
+        .forEach(btn => btn.classList.remove('active'));
+
+    document.getElementById(id).classList.add('active');
+}
+
+function showLiveBoard() {
+    currentView = "live";
+
+    setActiveButton("btn-live");
+    document.getElementById('live-board').style.display = 'block';
+    document.getElementById('full-schedule').style.display = 'none';
+}
+
+function showFullSchedule(dayType) {
+    currentView = "full";
+    currentDayType = dayType;
+    setActiveButton(
+        dayType === "Будні"
+            ? "btn-weekday"
+            : "btn-weekend"
+    );
+    document.getElementById('live-board').style.display = 'none';
+    document.getElementById('full-schedule').style.display = 'block';
+
+    document.getElementById('full-schedule-title').innerHTML =
+        `&#xf073; ПОВНИЙ ГРАФІК (${dayType.toUpperCase()})`;
+
+    const toCity = scheduleData
+        .filter(b => b.dayType === dayType && b.direction === "Житомир")
+        .sort((a, b) => a.time.localeCompare(b.time));
+
+    const fromCity = scheduleData
+        .filter(b => b.dayType === dayType && b.direction !== "Житомир")
+        .sort((a, b) => a.time.localeCompare(b.time));
+
+    const table = document.getElementById('full-schedule-table');
+
+    let html = `
+        <thead>
+            <tr class="direction-header">
+                <th colspan="3"><span class="icon">&#xf207;</span> ДО ЖИТОМИРА</th>
+            </tr>
+            <tr class="table-header">
+                <th><span class="icon">&#xf017;</span>Час</th>
+                <th>Рейс</th>
+                <th>Маршрут</th>
+            </tr>
+        </thead>
+        <tbody class="route-to">
+    `;
+
+    toCity.forEach(bus => {
+        html += `
+            <tr>
+                <td>${bus.time}</td>
+                <td>${bus.route}</td>
+                <td>
+                    <span class="route-path" style="--route-from-width: ${getRouteFromWidth(toCity)}">
+                        <span>${bus.from || "—"}</span>
+                        <span>➔</span>
+                        <span>${bus.direction === "Житомир" ? "Жт." : bus.direction}</span>
+                    </span>
+                </td>
+            </tr>`;
+    });
+
+    html += `
+        </tbody>
+        <thead>
+            <tr class="direction-header">
+                <th colspan="3"><span class="icon">&#xf00f5;</span> З ЖИТОМИРА</th>
+            </tr>
+            <tr class="table-header">
+                <th><span class="icon">&#xf017;</span>Час</th>
+                <th>Рейс</th>
+                <th>Маршрут</th>
+            </tr>
+        </thead>
+        <tbody class="route-from">
+    `;
+
+    fromCity.forEach(bus => {
+        html += `
+            <tr>
+                <td>${bus.time}</td>
+                <td>${bus.route}</td>
+                <td>
+                    <span class="route-path" style="--route-from-width: ${getRouteFromWidth(fromCity)}">
+                        <span>Жт.</span>
+                        <span>➔</span>
+                        <span>${bus.direction}</span>
+                    </span>
+                </td>
+            </tr>`;
+    });
+
+    html += `</tbody>`;
+    table.innerHTML = html;
+}
+
+loadSchedule()
+    .then(() => {
+        updateDisplay();
+        clockTick();
+        setActiveButton("btn-live");
+        setInterval(clockTick, 1000);
+    })
+    .catch(error => {
+        console.error(error);
+        document.getElementById('status').innerText = "// Помилка завантаження розкладу";
+    });
+</script>
+</body>
+</html>
