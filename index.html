@@ -77,6 +77,13 @@
             color: var(--bg);
         }
 
+        .prompt{
+        }
+
+        .direction-name{
+            margin-left:6px;
+        }
+
         .section-container,#live-board,#full-schedule{
             width:fit-content;
             max-width:100%;
@@ -98,6 +105,7 @@
             height:1px;
             background:var(--yellow);
             margin-left:10px;
+            margin-right:1ch;
         }
         .icon {
             font-weight: normal;
@@ -248,7 +256,7 @@
         <div class="section-title">
             <span class="icon">&#xf207;</span>
             <span class="prompt">&rarr;</span>
-            До Житомира
+            <span class="direction-name">До Житомира</span>
         </div>
         <table id="to-city-table"></table>
     </div>
@@ -257,7 +265,7 @@
         <div class="section-title">
             <span class="icon">&#xf207;</span>
             <span class="prompt">&larr;</span>
-            З Житомира
+            <span class="direction-name">З Житомира</span>
         </div>
         <table id="from-city-table"></table>
     </div>
