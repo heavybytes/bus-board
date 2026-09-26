@@ -88,10 +88,6 @@
             font-weight: bold;
         }
 
-        .direction-header .icon {
-            font-weight: normal;
-            margin-right: 6px;
-        }
         .table-header th {
             color: var(--fg);
             font-weight: bold;
@@ -187,7 +183,7 @@
         #status{
             color:var(--gray);
             margin-top:12px
-        }div
+        }
         #status-line {
             margin: 0 auto 10px;
             color: var(--cyan);
@@ -209,13 +205,7 @@
     <button id="bus-119" class="bus-toggle active" onclick="toggleBus('119')"><span>[119]</span></button>
 </div>
 
-<div id="view-controls" style="
-    width: 100%;
-    max-width: 800px;
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-">
+<div id="view-controls">
     <button id="btn-live" onclick="showLiveBoard()">
         <span>[табло]</span>
     </button>
@@ -251,7 +241,6 @@
 
     <button class="refresh-button" onclick="location.reload()">
         <span>[оновити]</span>
-    </button>
     </button>
 
     <div id="status">Оновлення...</div>
