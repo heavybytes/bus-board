@@ -47,7 +47,7 @@
         #bus-controls {
             max-width: 800px;
             margin: 0 auto 10px;
-            text-align: center;
+            text-align:right;
             font-family: inherit;
         }
 
@@ -99,6 +99,44 @@
         table{width:100%;border-collapse:collapse;background:none}
         td,th{padding:4px 2px;border:none;font:inherit}
         th{color:var(--gray);text-align:left}
+
+        #live-board table {
+            width: auto;
+            table-layout: auto;
+        }
+
+        #live-board #to-city-table,
+        #live-board #from-city-table {
+            table-layout: fixed;
+            width: 39ch;
+            max-width: 100%;
+        }
+
+        #live-board #to-city-table col:nth-child(1),
+        #live-board #from-city-table col:nth-child(1) {
+            width: 6ch;
+        }
+
+        #live-board #to-city-table col:nth-child(2),
+        #live-board #from-city-table col:nth-child(2) {
+            width: 6ch;
+        }
+
+        #live-board #to-city-table col:nth-child(3),
+        #live-board #from-city-table col:nth-child(3) {
+            width: 7ch;
+        }
+
+        #live-board #to-city-table col:nth-child(4),
+        #live-board #from-city-table col:nth-child(4) {
+            width: 5ch;
+        }
+
+        #live-board #to-city-table col:nth-child(5),
+        #live-board #from-city-table col:nth-child(5) {
+            width: 15ch;
+        }
+
         .route-to{color:var(--green)}
         .route-from{color:var(--blue)}
         .route-path {
@@ -108,6 +146,10 @@
         }
         .stop-time {
             color: var(--fg);
+        }
+        .table-header td {
+            color: var(--cyan);
+            font-weight: bold;
         }
 
         .en-route{color:var(--gray)}
@@ -401,14 +443,53 @@ function getRouteFromWidth(buses) {
 
 function renderTable(containerId, buses) {
     const table = document.getElementById(containerId);
+
     table.style.setProperty(
         '--route-from-width',
         getRouteFromWidth(buses)
     );
+
     let html = "";
 
+    html += `
+        <colgroup>
+            <col style="width:7ch">
+            <col style="width:7ch">
+            <col style="width:7ch">
+            <col style="width:5ch">
+            <col style="width:13ch">
+        </colgroup>`;
+
+    if (containerId === "to-city-table") {
+        html += `
+            <tr class="table-header">
+                <td>ЧАС</td>
+                <td colspan="2"></td>
+                <td>РЕЙС</td>
+                <td>МАРШРУТ</td>
+            </tr>`;
+    } else {
+        html += `
+            <tr class="table-header">
+                <td>ЧАС</td>
+                <td>АТБ</td>
+                <td>ВДОМА</td>
+                <td>РЕЙС</td>
+                <td>МАРШРУТ</td>
+            </tr>`;
+    }
+
     if (buses.length === 0) {
-        table.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px; opacity:0.5;'>Рейсів не знайдено</td></tr>";
+        const colspan = containerId === "to-city-table" ? 3 : 5;
+
+        table.innerHTML += `
+            <tr>
+                <td colspan="${colspan}"
+                    style="text-align:center; padding:10px; opacity:0.5;">
+                    Рейсів не знайдено
+                </td>
+            </tr>`;
+
         return;
     }
 
@@ -418,7 +499,9 @@ function renderTable(containerId, buses) {
         if (bus.isEnRoute) {
             rowClass = "en-route";
         } else {
-            rowClass = bus.direction === "Житомир" ? "route-to" : "route-from";
+            rowClass = bus.direction === "Житомир"
+                ? "route-to"
+                : "route-from";
         }
 
         let routeFrom = "";
@@ -432,26 +515,35 @@ function renderTable(containerId, buses) {
             routeTo = bus.direction;
         }
 
-        let routePath = `
-            <span class="route-path">
+        const routePath = `
+            <span class="route-path"
+                  style="--route-from-width: ${getRouteFromWidth(buses)}">
                 <span>${routeFrom}</span>
                 <span>➔</span>
                 <span>${routeTo}</span>
             </span>`;
 
-        let timeDisplay = bus.time;
+        if (bus.direction === "Житомир") {
+            html += `
+                <tr class="${rowClass}">
+                    <td>${bus.time}</td>
+                    <td colspan="2"></td>
+                    <td>${bus.route}</td>
+                    <td>${routePath}</td>
+                </tr>`;
+        } else {
+            const atbTime = addMinutes(bus.time, 25);
+            const homeTime = addMinutes(bus.time, 35);
 
-        if (bus.direction !== "Житомир") {
-            const stopTime = addMinutes(bus.time, 25);
-            timeDisplay = `${bus.time} <span class="stop-time">[${stopTime} атб]</span>`;
+            html += `
+                <tr class="${rowClass}">
+                    <td>${bus.time}</td>
+                    <td class="stop-time">${atbTime}</td>
+                    <td class="stop-time">${homeTime}</td>
+                    <td>${bus.route}</td>
+                    <td>${routePath}</td>
+                </tr>`;
         }
-
-        html += `
-            <tr class="${rowClass}">
-                <td>${timeDisplay}</td>
-                <td>${bus.route}</td>
-                <td>${routePath}</td>
-            </tr>`;
     });
 
     table.innerHTML = html;
